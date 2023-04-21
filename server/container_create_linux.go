@@ -674,19 +674,6 @@ func (s *Server) createSandboxContainer(ctx context.Context, ctr ctrfactory.Cont
 		specgen.AddProcessEnv(parts[0], parts[1])
 	}
 
-	// Setup user and groups
-	if linux != nil {
-		if err := setupContainerUser(ctx, specgen, mountPoint, mountLabel, containerInfo.RunDir, securityContext, containerImageConfig); err != nil {
-			return nil, err
-		}
-	}
-
-	// Add image volumes
-	volumeMounts, err := addImageVolumes(ctx, mountPoint, s, &containerInfo, mountLabel, specgen)
-	if err != nil {
-		return nil, err
-	}
-
 	// Set working directory
 	// Pick it up from image config first and override if specified in CRI
 	containerCwd := "/"
@@ -700,6 +687,19 @@ func (s *Server) createSandboxContainer(ctx context.Context, ctr ctrfactory.Cont
 	}
 	specgen.SetProcessCwd(containerCwd)
 	if err := setupWorkingDirectory(mountPoint, mountLabel, containerCwd); err != nil {
+		return nil, err
+	}
+
+	// Setup user and groups; must be after containerCwd has been determined, since it can be used as a homedir fallback
+	if linux != nil {
+		if err := setupContainerUser(ctx, specgen, mountPoint, mountLabel, containerInfo.RunDir, securityContext, containerImageConfig); err != nil {
+			return nil, err
+		}
+	}
+
+	// Add image volumes
+	volumeMounts, err := addImageVolumes(ctx, mountPoint, s, &containerInfo, mountLabel, specgen)
+	if err != nil {
 		return nil, err
 	}
 
